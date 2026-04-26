@@ -11,13 +11,16 @@ from pathlib import Path
 from google.auth.transport.requests import Request
 from google.oauth2 import service_account
 
-SA_KEY_PATH = Path(__file__).parent.parent / ".secrets" / "tom-blogs-sa.json"
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+SA_KEY_PATH = REPO_ROOT / ".secrets" / "tom-blogs-sa.json"
 SITE_URL = "https://www.tom-blogs.top/"
+SITEMAP_URL = "https://www.tom-blogs.top/sitemap.xml"
 GA4_PROPERTY_ID = "properties/533036655"
 GA4_MEASUREMENT_ID = "G-6D1EK1NGE0"
 
 SCOPES_SC = ["https://www.googleapis.com/auth/webmasters.readonly"]
 SCOPES_GA = ["https://www.googleapis.com/auth/analytics.readonly"]
+SCOPES_INDEXING = ["https://www.googleapis.com/auth/indexing"]
 
 
 def _get_credentials(scopes: list[str]):
@@ -161,6 +164,50 @@ def get_ga4_report(days: int = 7):
         return rows
     except Exception as e:
         return {"error": str(e)}
+
+
+# ── Indexing API ───────────────────────────────────────────────
+
+def submit_indexing(url: str, kind: str = "URL_UPDATED"):
+    """Submit a URL to Google's Indexing API.
+
+    Note: the Indexing API officially supports only JobPosting and BroadcastEvent
+    structured data. For regular pages it returns 403/permission-denied unless the
+    service account has been added as a verified owner in Search Console AND the
+    page has the appropriate structured data. We surface the error to the caller
+    rather than silently retry.
+    """
+    from googleapiclient.discovery import build
+    creds = _get_credentials(SCOPES_INDEXING)
+    svc = build("indexing", "v3", credentials=creds)
+    body = {"url": url, "type": kind}
+    try:
+        resp = svc.urlNotifications().publish(body=body).execute()
+        return {"ok": True, "response": resp}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ── Sitemap helpers ────────────────────────────────────────────
+
+def fetch_article_urls() -> list[str]:
+    """Parse sitemap.xml and return article URLs only (exclude tag/category/about/home)."""
+    import requests
+    from xml.etree import ElementTree
+
+    resp = requests.get(SITEMAP_URL, timeout=10)
+    root = ElementTree.fromstring(resp.text)
+    ns = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    urls = [loc.text for loc in root.findall(".//ns:loc", ns)]
+    article_urls = []
+    for u in urls:
+        path = u.replace("https://www.tom-blogs.top/", "/")
+        if path in ("/", "/about/index.html"):
+            continue
+        if "/tags/" in path or "/categories/" in path:
+            continue
+        article_urls.append(u)
+    return article_urls
 
 
 # ── Report Generation ──────────────────────────────────────────

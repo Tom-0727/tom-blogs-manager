@@ -1,0 +1,11 @@
+[project]
+name = "tom-blogs-analytics"
+version = "0.1.0"
+description = "Search Console + GA4 analytics utilities for tom-blogs.top"
+requires-python = ">=3.11"
+dependencies = [
+    "google-api-python-client>=2.0",
+    "google-auth>=2.0",
+    "google-analytics-data>=0.18",
+    "requests>=2.31",
+]

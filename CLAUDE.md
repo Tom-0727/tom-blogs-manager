@@ -123,6 +123,8 @@ Message Style:
 
 - **Ideas Recommender (`.claude/agents/ideas-recommender.md`)** — when the mailbox receives a new write into `mailbox/agent.AI-Informer.jsonl`, or when Tom explicitly asks for topic filtering, dispatch the `ideas-recommender` subagent. Do not score / filter items in the main agent. The subagent reads the AI-Informer digest, calls `scripts/list_known_topics.py` for dedup context, and appends scored items to `writing-ideas-app/data/ideas/YYYYMM/DD.json`. The legacy `writing-ideas-app/scorer.py` is retired — there is no fallback path.
 
+- **Blog Weekly Reporter (`.claude/agents/blog-weekly-reporter.md`)** — when the `scheduled_tasks.json` weekly trigger 「博客周度数据复盘」 fires (Monday morning, Singapore time), dispatch the `blog-weekly-reporter` subagent. Do not generate the report or call analytics APIs from the main agent. The subagent calls helpers in `scripts/analytics/monitor.py`, auto-submits unindexed article URLs through the Indexing API, then sends one plain-text Chinese mailbox report to Tom. The legacy `analytics/weekly_report.py` and `analytics/` directory are retired — there is no fallback path.
+
 ## General Principles
 
 - Use `uv` for scripts that run logic.

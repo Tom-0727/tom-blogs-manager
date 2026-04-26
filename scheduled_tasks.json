@@ -1,0 +1,15 @@
+[
+  {
+    "id": "s1",
+    "title": "博客周度数据复盘",
+    "description": "周一上午（新加坡时间）触发；主 agent 拉起 blog-weekly-reporter subagent 完成数据采集、自动提交未收录 URL、生成周报并通过 mailbox 发给 Tom。",
+    "subtasks": [],
+    "reminder_at": {
+      "kind": "weekly",
+      "time": "09:00",
+      "weekdays": [
+        "MON"
+      ]
+    }
+  }
+]
