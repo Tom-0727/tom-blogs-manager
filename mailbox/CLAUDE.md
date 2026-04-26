@@ -1,0 +1,39 @@
+# mailbox/
+
+Communication channel for Tom-Blogs-Manager — supports human and inter-agent messaging.
+
+**You MUST read this file before operating the mailbox.**
+
+## Structure
+
+- `contacts.json` — contact list (human + connected agents)
+- `human.jsonl` — messages with human
+- `agent.<name>.jsonl` — messages with a specific agent
+
+Each .jsonl file is append-only. Each line is a JSON object.
+
+## Message Schema
+
+Required fields:
+- `id`: unique identifier (format: `mail.<YYYYMMDDTHHMMSSZ>.<seq>`)
+- `ts`: ISO 8601 timestamp
+- `from`: sender name (human, or agent name)
+- `to`: recipient name
+- `task_id`: associated task identifier
+- `message`: the content
+
+Optional fields:
+- `kind`: `update | question | decision | blocker`
+- `await_reply`: whether the sender expects the runtime to pause for a reply
+
+## Operating Rules
+
+- **Append-only** — never modify or delete old messages
+- Read new messages at every heartbeat wakeup using `mailbox-read --summary` first
+- Use skill scripts (`mailbox-send`, `mailbox-read`, `contacts.py`) instead of manual JSONL edits
+- To send to human (default): `mailbox-send --message "..."`
+- To send to another agent: `mailbox-send --to <name> --message "..."`
+- To broadcast to all agents: `mailbox-send --broadcast --message "..."`
+- To read from a specific contact: `mailbox-read --from <name>`
+- To pause until a reply: `mailbox-send --await-reply --message "..."`
+- Contacts are managed by human via the platform — do not attempt to create or remove contacts

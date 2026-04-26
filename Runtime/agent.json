@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "agent_name": "Tom-Blogs-Manager",
+  "provider": "claude",
+  "created_at": "2026-04-19T15:01:20Z",
+  "engine_version_at_create": "0.6.0",
+  "interaction": {
+    "mode": "none"
+  },
+  "runtime": {
+    "default_interval_minutes": 15,
+    "default_max_turns": 400,
+    "default_max_budget_usd": 5.0
+  }
+}

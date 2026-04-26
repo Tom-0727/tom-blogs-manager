@@ -1,0 +1,138 @@
+# Memory/episodes/
+
+Bounded execution records for Tom-Blogs-Manager.
+
+**You MUST read this file before creating or updating any episode.**
+
+## Keep Episode Files Concise
+
+The episode file is the durable, decision-relevant record — **not** the place where full execution context flows. Detailed planning briefings and detailed evaluation reasoning are passed between the main agent and its subagents (`episode-planner`, `episode-evaluator`) via prompts and return values, not by dumping them here. Put only what the agent itself will need when reading this episode back later.
+
+## Unit of Record
+
+`One episode = one bounded work cycle with a direct objective and a judgeable outcome`
+
+Valid examples:
+- A first market sizing attempt
+- A retry after discovering low-trust sources
+- A synthesis pass consolidating evidence into a memo
+
+Invalid boundaries:
+- A single shell command
+- A calendar day
+- An entire multi-day project
+
+Quick test — can you answer all of these?
+1. What am I trying to achieve right now?
+2. What context am I relying on?
+3. What did I try?
+4. What was the outcome?
+
+If yes, the boundary is likely correct.
+
+## Tasks and Episodes
+
+- `task`: An agent-defined unit of execution derived from a broader goal. A task may span multiple episodes.
+- `episode`: A bounded attempt within a task.
+
+Rules:
+- `task` is the semantic grouping key
+- `time` is the storage key
+- `episode` is the replay and learning key
+- Each episode has exactly one `task_id`
+
+## Directory Structure
+
+```
+episodes/
+  YYYY/
+    MM/
+      ep--<started_at_utc>--<domain>--<slug>.md
+```
+
+Store chronologically, group by metadata, path stability over semantic nesting.
+
+## File Naming
+
+Format: `ep--<started_at_utc>--<domain>--<slug>.md`
+
+- `started_at_utc`: `YYYYMMDDTHHMMSSZ`
+- `domain`: coarse-grained namespace
+- `slug`: short summary of the attempt
+
+## Frontmatter (required)
+
+Every episode must begin with this frontmatter:
+
+```yaml
+---
+id: ep.<started_at_utc>.<domain>.<slug>
+task_id: task.<domain>.<task-slug>
+domain: <domain>
+title: Human-readable episode label
+objective: One sentence describing what "done" looks like. Qualitative criteria are fine — you do not need to quantify.
+status: completed | failed   # omit at creation; set only at the terminal state
+eval_rounds: 0
+last_edited_at: YYYY-MM-DD
+---
+```
+
+Status meaning:
+- `completed` — the evaluator returned PASS for this episode's objective.
+- `failed` — the evaluator returned FAIL after the 3-round soft cap, or execution hit an unrecoverable blocker.
+
+An episode file with no `status` field is mid-flight and not authoritative. The planner creates the file without `status`; the main agent writes it at the end of the heartbeat when the outcome is decided.
+
+`eval_rounds` is the counter for the per-episode evaluator retry cap. It starts at 0 and is incremented every time the main agent re-invokes the evaluator for this episode.
+
+## Body Template
+
+```markdown
+## Objective
+
+One sentence describing what "done" looks like for this episode. Qualitative criteria are fine — you do not need to quantify.
+
+## Context Snapshot
+
+- Key assumptions
+- Prior episode IDs
+- Relevant knowledge or constraints
+
+## Actions Taken
+
+- Action 1
+- Action 2
+- Action 3
+
+## Key Evidence
+
+- Evidence that changed decisions
+
+## Outcome
+
+- Result
+- Status explanation
+- Output summary
+
+## Reflection
+
+- What worked
+- What failed
+- What changed my thinking
+- What should be reused or avoided
+
+## Follow-up Actions
+
+- Suggested next episode
+- Candidates for promotion to knowledge/skill
+```
+
+## Compression
+
+Episodes store decision-relevant information, not raw output.
+
+**Include**: decisive observations, important commands/files/URLs, contradictory evidence, failure points, reasoning changes.
+
+**Avoid by default**: full terminal output dumps, every intermediate thought, every web excerpt, redundantly copied context.
+
+Learning graph: `task → episode → reflection → knowledge / skill`
