@@ -1,0 +1,29 @@
+<div id="draftsRoot">
+  <div id="draftsListView">
+    <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h1 style="font-size:1.8rem;">草稿箱</h1>
+      <div class="meta" id="draftCount"></div>
+    </header>
+    <div id="draftsList"></div>
+  </div>
+
+  <div id="draftsEditorView">
+    <div class="editor-toolbar-custom">
+      <button class="btn btn-secondary" data-action="back">&larr; 返回列表</button>
+      <div class="btn-group">
+        <select id="statusSelect" class="status-select">
+          <option value="draft">草稿中</option>
+          <option value="review">待审阅</option>
+          <option value="approved">已通过</option>
+          <option value="published">已发布</option>
+        </select>
+        <button class="btn btn-primary" data-action="save">保存</button>
+        <button class="btn btn-danger" data-action="delete">删除</button>
+      </div>
+    </div>
+    <input type="text" id="draftTitle" placeholder="文章标题" style="margin-bottom:14px;" />
+    <div id="draftMeta" class="draft-time" style="margin-bottom:12px;"></div>
+    <textarea id="draftEditor"></textarea>
+    <div id="saveStatus" class="save-hint"></div>
+  </div>
+</div>

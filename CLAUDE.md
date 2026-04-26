@@ -125,6 +125,18 @@ Message Style:
 
 - **Blog Weekly Reporter (`.claude/agents/blog-weekly-reporter.md`)** — when the `scheduled_tasks.json` weekly trigger 「博客周度数据复盘」 fires (Monday morning, Singapore time), dispatch the `blog-weekly-reporter` subagent. Do not generate the report or call analytics APIs from the main agent. The subagent calls helpers in `scripts/analytics/monitor.py`, auto-submits unindexed article URLs through the Indexing API, then sends one plain-text Chinese mailbox report to Tom. The legacy `analytics/weekly_report.py` and `analytics/` directory are retired — there is no fallback path.
 
+## Heartbeat — writings flow
+
+On every heartbeat, after handling fresh mailbox messages and any due reminders, run `uv run python writing-ideas-app/scripts/scan_writings.py`. The script returns a JSON list of writings in `data/writings/<slug>/` whose `status.json` indicates pending work. For each entry, act on `next_action` using the FastAPI endpoints under `/api/writings/`:
+
+- `write_outline` — call the `blog-writer` skill with the writing's `idea.md` to produce an outline; PUT it to `/api/writings/{slug}/stage/outline`. Also fill `meta.json` with candidate `tags` and `category` (Tom can edit them later).
+- `write_draft` — call `blog-writer` with `idea.md` + `outline.md` to produce a draft; PUT to `/api/writings/{slug}/stage/draft`.
+- `revise_outline` / `revise_draft` — read the new feedback entries from `feedback.jsonl` (those with `ts` newer than the current stage's `stage_ts`), apply them, then PUT the revised content back to the same stage endpoint. Stage stays the same; the `stage_ts` updates automatically.
+- `publish` — call `POST /api/writings/{slug}/publish` with a `target_dir` matching the post's category (e.g. `agent-engineering`). On success, the draft is copied into `tom-ai-lab-blogs/source/_posts/<target_dir>/<slug>.md`. Then `git add` + commit + push from inside `tom-ai-lab-blogs/` to trigger Vercel deploy.
+- `wait_outline_review` / `wait_draft_review` — no agent action; Tom is reviewing.
+
+Keep this routine lower priority than mailbox urgency. If the script returns an empty list, skip. If `last_error` is set, surface it briefly in the next status update to Tom and retry the failing action once before backing off.
+
 ## General Principles
 
 - Use `uv` for scripts that run logic.
