@@ -31,13 +31,21 @@ Tom-Blogs-Manager 的写作协同后台：选题推荐 + 草稿箱。
 ## 本地使用
 
 ```bash
+# 安装/同步依赖
+uv sync
+
 # 重新生成选题数据
-python scorer.py
+uv run python scorer.py
 
 # 启动后端（开发模式）
-python app.py
+uv run python app.py
 # 访问 http://localhost:8765
 ```
+
+## 线上服务
+
+systemd 服务文件模板在 `deploy/writing-platform.service`。线上服务通过 `uv run --locked`
+从本目录的 `pyproject.toml` / `uv.lock` 启动，不依赖手工创建的仓库根目录 `.venv`。
 
 ## 草稿协同流程
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=Tom Writing Platform (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/agents/tom-blogs-manager/writing-ideas-app
+ExecStart=/home/ubuntu/.local/bin/uv run --locked --project /home/ubuntu/agents/tom-blogs-manager/writing-ideas-app uvicorn app:app --host 127.0.0.1 --port 8765
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
