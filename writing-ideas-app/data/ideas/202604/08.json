@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-04-15T04:14:34Z",
+  "digest_source": "migrated-from-data/ideas.json",
+  "ideas": [
+    {
+      "title": "Together AI Brings NVIDIA Nemotron 3 to Developers on Day 0",
+      "url": "https://www.together.ai/blog/nvidia-nemotron-3-super",
+      "source": "together-blog",
+      "scores": {
+        "audience_reach": 3,
+        "distribution_potential": 2,
+        "author_differentiation": 4,
+        "timeliness": 3,
+        "series_potential": 2,
+        "total": 14
+      },
+      "content_line": "技术深度",
+      "suggested_angle": "从工程实践角度分享一手体验和判断，突出独特洞察",
+      "recommendation": "weak",
+      "date": "2026-04-08"
+    }
+  ]
+}

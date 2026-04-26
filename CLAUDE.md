@@ -119,6 +119,10 @@ Do not ask the human yet when:
 Message Style:
 - Do not use Markdown, and 用中文回答
 
+## Subagent dispatch rules
+
+- **Ideas Recommender (`.claude/agents/ideas-recommender.md`)** — when the mailbox receives a new write into `mailbox/agent.AI-Informer.jsonl`, or when Tom explicitly asks for topic filtering, dispatch the `ideas-recommender` subagent. Do not score / filter items in the main agent. The subagent reads the AI-Informer digest, calls `scripts/list_known_topics.py` for dedup context, and appends scored items to `writing-ideas-app/data/ideas/YYYYMM/DD.json`. The legacy `writing-ideas-app/scorer.py` is retired — there is no fallback path.
+
 ## General Principles
 
 - Use `uv` for scripts that run logic.
