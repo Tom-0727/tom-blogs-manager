@@ -1,8 +1,7 @@
 .secrets/
 tom-ai-lab-blogs/
-writing-ideas-app/
 __pycache__/
 *.pyc
 *.log
 Runtime/logs/
-mailbox/*.jsonl
+.env

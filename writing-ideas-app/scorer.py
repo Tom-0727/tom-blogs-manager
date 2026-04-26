@@ -1,0 +1,277 @@
+#!/usr/bin/env python3
+"""Score AI-Informer digest items against the blog topic recommendation framework."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from datetime import datetime, timedelta, timezone
+
+# ── Scoring rule sets ────────────────────────────────────────────
+# All keyword groups used by score_item live here so the scoring logic
+# below stays a thin "match → assign" mapping.
+
+# Tom's expertise domains — used for author differentiation scoring.
+AUTHOR_STRENGTHS = {
+    "agent", "agents", "ai agent", "agent engineering", "agent architecture",
+    "claude code", "anthropic", "claude", "memory", "context", "learning",
+    "human in the loop", "human-ai", "ai employee", "ai workers",
+    "openclaw", "researcher", "skill", "skills", "workflow", "automation",
+    "solo founder", "one man", "indie", "solopreneur",
+    "llm application", "ai startup", "ai business",
+    "continual learning", "lifelong", "long-run", "long run",
+    "harness", "agent team", "agent registry",
+    "memory system", "agent memory", "episodic memory",
+}
+
+WEAK_DOMAINS = {
+    "edge ai", "on device", "mobile ai", "image generation", "video generation",
+    "diffusion", "stable diffusion", "midjourney", "text to image", "text to video",
+    "model training", "pretraining", "fine-tuning", "rlhf",
+    "robotics", "self-driving", "autonomous vehicle",
+    "gaming", "game ai",
+}
+
+# Audience reach tiers (highest match wins)
+AUDIENCE_BROAD = ("solo founder", "one person", "startup", "business model", "pricing")
+AUDIENCE_PLATFORM = ("agent platform", "ai workforce", "ai employee", "openclaw", "anthropic")
+AUDIENCE_AGENT = ("agent", "framework", "architecture", "engineering")
+
+# Distribution potential — keyword fallback when source/score doesn't trigger
+DIST_HOT_KEYWORDS = ("pricing", "pay up", "solo founder", "billion")
+
+# Timeliness tiers
+TIMELINESS_NEWS = ("pay up", "pricing change", "announces", "launches", "released")
+TIMELINESS_TREND = ("trend", "future", "prediction")
+TIMELINESS_EVERGREEN = ("tutorial", "guide", "how to", "demystify")
+
+# Series potential tiers
+SERIES_CORE = ("continual learning", "lifelong", "memory system", "agent memory", "episodic")
+SERIES_PRACTICE = ("solo founder", "ai workforce", "ai employee", "one man")
+SERIES_HARNESS = ("harness", "agent team", "agent registry")
+SERIES_ARCHITECTURE = ("framework", "architecture", "platform")
+SERIES_PRICING = ("pricing", "pay up")
+
+# Content-line classifier
+CONTENT_LINE_INSIGHT = (
+    "pricing", "business", "founder", "startup", "trend", "market",
+    "pay up", "billion", "solo", "industry", "funding", "valuation",
+    "acquisition", "ipo", "revenue", "superapp",
+)
+CONTENT_LINE_TOOL = ("tool", "workflow", "automation", "how to", "tutorial")
+
+RETENTION_DAYS = 7
+
+
+def _has_any(text: str, keywords) -> bool:
+    return any(kw in text for kw in keywords)
+
+
+def score_item(item: dict) -> dict:
+    """Score a single digest item on 5 dimensions (1-5 each, max 25)."""
+    title = (item.get("title") or "").lower()
+    raw = item.get("raw_item", {})
+    summary = (raw.get("summary") or "").lower()
+    readme = (raw.get("readme_excerpt") or "").lower()
+    text = f"{title} {summary} {readme}"
+    source = item.get("source", "")
+
+    # 1. Audience Reach (1-5)
+    if _has_any(text, AUDIENCE_BROAD):
+        audience_score = 5
+    elif _has_any(text, AUDIENCE_PLATFORM):
+        audience_score = 4
+    elif _has_any(text, AUDIENCE_AGENT):
+        audience_score = 3
+    else:
+        audience_score = 2
+
+    # 2. Distribution Potential (1-5)
+    hn_score = raw.get("score", 0) if source == "hacker-news" else 0
+    if hn_score > 400 or _has_any(text, DIST_HOT_KEYWORDS):
+        dist_score = 5
+    elif hn_score > 200 or source == "rundown-ai":
+        dist_score = 4
+    elif hn_score > 50 or source == "product-hunt":
+        dist_score = 3
+    else:
+        dist_score = 2
+
+    # 3. Author Differentiation (1-5)
+    weak_matches = sum(1 for kw in WEAK_DOMAINS if kw in text)
+    strength_matches = sum(1 for kw in AUTHOR_STRENGTHS if kw in text)
+    if weak_matches > 0:
+        author_score = max(1, 2 - weak_matches)
+    elif strength_matches >= 3:
+        author_score = 5
+    elif strength_matches >= 2:
+        author_score = 4
+    elif strength_matches >= 1:
+        author_score = 3
+    else:
+        author_score = 2
+    # Tom is a direct user of OpenClaw / Claude Code — always max
+    if "openclaw" in text or "claude code" in text:
+        author_score = 5
+
+    # 4. Timeliness (1-5)
+    if _has_any(text, TIMELINESS_NEWS):
+        time_score = 5
+    elif _has_any(text, TIMELINESS_TREND):
+        time_score = 4
+    elif _has_any(text, TIMELINESS_EVERGREEN):
+        time_score = 1
+    else:
+        time_score = 3
+
+    # 5. Series Potential (1-5)
+    if _has_any(text, SERIES_CORE):
+        series_score = 5
+    elif _has_any(text, SERIES_PRACTICE) or _has_any(text, SERIES_HARNESS):
+        series_score = 4
+    elif _has_any(text, SERIES_ARCHITECTURE) or _has_any(text, SERIES_PRICING):
+        series_score = 3
+    else:
+        series_score = 2
+
+    total = audience_score + dist_score + author_score + time_score + series_score
+
+    return {
+        "title": item.get("title", ""),
+        "url": item.get("url", ""),
+        "source": source,
+        "scores": {
+            "audience_reach": audience_score,
+            "distribution_potential": dist_score,
+            "author_differentiation": author_score,
+            "timeliness": time_score,
+            "series_potential": series_score,
+            "total": total,
+        },
+        "content_line": _classify_content_line(text),
+        "suggested_angle": _suggest_angle(text, author_score),
+        "recommendation": "strong" if total >= 20 else "moderate" if total >= 15 else "weak",
+    }
+
+
+def _suggest_angle(text: str, author_score: int) -> str:
+    if "openclaw" in text and "pay" in text:
+        return "作为OpenClaw的真实用户，从亲历者视角分析这次定价变化对独立开发者意味着什么，延伸到AI基础设施的商业模式演变"
+    if "continual learning" in text or "lifelong" in text:
+        return "从正在构建Long-Run Agent的实践出发，分析Agent持续学习的真实挑战和可行路径，对比理论方案与工程落地的差距"
+    if "memory system" in text or "memory architecture" in text or "episodic memory" in text:
+        return "结合自建Agent记忆系统的经验，拆解Agent记忆的工程实现、瓶颈和设计取舍"
+    if "harness" in text and ("agent" in text or "coding" in text):
+        return "对比分析不同Agent Harness的设计理念，结合自建Long-Run Agent Harness的经验给出工程判断"
+    if "solo founder" in text or "one person" in text or "billion" in text:
+        return "从'One Man, Many Agents'的实践出发，用自己构建AI员工体系的经验，讨论AI如何改变个人的能力边界"
+    if author_score >= 4 and ("agent" in text or "claude" in text):
+        return "从工程实践角度分享一手体验和判断，突出独特洞察"
+    if "framework" in text or "open source" in text:
+        return "代码级拆解 + 对自建系统的参考价值分析"
+    return "结合行业趋势和个人视角，提供独特分析"
+
+
+def _classify_content_line(text: str) -> str:
+    if _has_any(text, CONTENT_LINE_INSIGHT):
+        return "行业洞察"
+    if _has_any(text, CONTENT_LINE_TOOL):
+        return "实用工具"
+    return "技术深度"
+
+
+def score_digest(digest_path: str | Path) -> list[dict]:
+    """Score all items in a filtered.json digest file."""
+    path = Path(digest_path)
+    if path.is_dir():
+        path = path / "filtered.json"
+
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    # Use agent_rerank_frontier (broader pool) if available, fall back to shortlist
+    items = data.get("agent_rerank_frontier", []) or data.get("shortlist", [])
+    scored = [score_item(item) for item in items]
+    scored.sort(key=lambda x: x["scores"]["total"], reverse=True)
+    return scored
+
+
+def find_latest_digest() -> Path | None:
+    """Find the latest AI-Informer digest directory."""
+    base = Path("/home/ubuntu/agents/ai-informer/Runtime/digests")
+    latest_file = base / "LATEST_DAILY_READY"
+    if latest_file.exists():
+        target = latest_file.read_text().strip()
+        p = Path(target)
+        if p.exists():
+            return p
+    # Fallback: find most recent directory
+    dirs = sorted([d for d in base.iterdir() if d.is_dir() and d.name.startswith("2")], reverse=True)
+    return dirs[0] if dirs else None
+
+
+def generate_ideas(output_path: str | Path | None = None) -> list[dict]:
+    """Main entry: find latest digest, score, merge with history, prune >7 days."""
+    digest_dir = find_latest_digest()
+    if not digest_dir:
+        return []
+
+    now = datetime.now(timezone.utc)
+    today = now.strftime("%Y-%m-%d")
+    scored = score_digest(digest_dir)
+
+    for idea in scored:
+        idea["date"] = today
+
+    # Load existing data and merge
+    out = Path(output_path) if output_path else None
+    existing_ideas = []
+    existing_sources = set()
+    if out and out.exists():
+        with open(out, "r", encoding="utf-8") as f:
+            old_data = json.load(f)
+        existing_ideas = old_data.get("ideas", [])
+        existing_sources = {i.get("digest_source") for i in old_data.get("daily_sources", [])}
+
+    # Deduplicate by URL — newer (today's) version wins
+    seen_urls = {idea["url"] for idea in scored}
+    merged = list(scored)
+    for idea in existing_ideas:
+        if idea.get("url") not in seen_urls:
+            merged.append(idea)
+            seen_urls.add(idea["url"])
+
+    # Prune ideas older than RETENTION_DAYS
+    cutoff = (now - timedelta(days=RETENTION_DAYS)).strftime("%Y-%m-%d")
+    merged = [i for i in merged if i.get("date", "2000-01-01") >= cutoff]
+
+    # Sort: date desc, then total score desc
+    merged.sort(key=lambda x: (-int(x.get("date", "2000-01-01").replace("-", "")),
+                                -x["scores"]["total"]))
+
+    dates = sorted({i.get("date", "") for i in merged}, reverse=True)
+    daily_sources_list = list(existing_sources | {str(digest_dir)})
+
+    result = {
+        "generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "digest_source": str(digest_dir),
+        "dates": dates,
+        "daily_sources": [{"digest_source": s} for s in daily_sources_list[-20:]],
+        "ideas": merged,
+    }
+
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+
+    return merged
+
+
+if __name__ == "__main__":
+    ideas = generate_ideas("data/ideas.json")
+    for idea in ideas:
+        s = idea["scores"]
+        print(f"[{s['total']}/25] [{idea['recommendation']}] [{idea.get('date','')}] {idea['title']}")
+        print(f"  内容线: {idea['content_line']} | 角度: {idea['suggested_angle'][:50]}...")
+        print()
