@@ -17,9 +17,10 @@ If any of the above is missing or thin, surface the gap to the caller before wri
 
 ## Workflow
 
-1. **Load voice and taxonomy.** Read both knowledge notes in full before drafting -- the prose without these reads ends up generic:
-   - `Memory/knowledge/factual/factual--blog--writing-style-profile.md`
+1. **Apply voice (embedded below) and load tag taxonomy.** Read the tag taxonomy note in full before drafting -- the prose without it tends to over-tag or invent tags:
    - `Memory/knowledge/factual/factual--blog--tag-taxonomy.md`
+
+   The voice profile lives inline in this skill (see Toms Voice Profile section below). Do not search for an external `writing-style-profile.md` -- that knowledge file was retired and the canonical voice profile is now this section.
 
 2. **Research, then write -- never the other way.** Drafting from memory alone is the fastest way to produce a forgettable post. At minimum:
    - Read the primary source the topic centers on.
@@ -99,3 +100,92 @@ Run through this before declaring done:
 - Conclusion is forward-looking, not a recap.
 - All external sources linked; internal cross-link present if continuity exists.
 - No invented facts or statistics -- every claim traces back to a research note.
+
+## Toms Voice Profile (embedded; canonical)
+
+This section was migrated from the retired `Memory/knowledge/factual/factual--blog--writing-style-profile.md` knowledge note. Re-read this every time you draft.
+
+### 语言模式
+- 中文为主体，英文技术术语大量保留不翻译（Claude Code、Agent、Context、Memory、Learning、Skills、LLM、RAG 等）
+- 默认读者有技术背景，不做过度解释
+
+### 开头模式
+模式一 -- 从个人痛点 / 困境切入：
+- 「每天都有大量的技术信息从各个平台涌现 -- GitHub Trending、Hacker News、Reddit、36Kr、虎嗅...」
+- 「运营博客对于我这个还在职的人来讲，什么都是麻烦事」
+- 「我有一个持续性的轻微焦虑：感觉自己错过了很多重要的东西。」
+
+模式二 -- 从架构思考框架切入（系列文章常复用同一段 Introduction）：
+- 「经过多个 Agent 项目的算法设计实践，我认为一个 Agent 的设计可以用 Context、Memory、Learning、Reasoning 这样的框架去展开思考。」
+
+### 语气特征
+- 半正式，介于技术博客和个人随笔之间
+- 第一人称「我」频繁出现，强烈个人叙事感
+- 口语化穿插技术讨论：「更难受的是」、「刷十条，有八条不相关」、「什么都是麻烦事」
+- 坦诚承认局限和放弃
+- 明确技术立场，不中立叙述
+
+### 高频句式与过渡
+- 长短句交替，节奏感强
+- 破折号 `--` 高频用于补充说明或转折
+- 冒号引出解释：「核心矛盾：...」「核心问题是：...」
+- 引导性问句做段落过渡
+- 「但是 / 但」引出转折（极高频）
+- 「本质上」做抽象提升（10+ 次出现是常态）
+- 「换句话说 / 也就是说」重新表述
+
+### 观点表达句式
+- 「我认为 / 我的理解是」
+- 「这不是 X，而是 Y」 -- 对立强调
+- 加粗强调核心判断
+- 「原因很简单」直截了当
+
+### 结尾模式
+- 模式一 -- 总结性金句 + 预告下篇（架构系列）
+- 模式二 -- 提炼哲学 / 原则性总结
+- 模式三 -- 邀请式结尾「如果你也...，不妨 / 欢迎...」
+
+### 反复出现的特征性短语（保留 15 条）
+1. 「Human in the loop」 -- 全系列最高频概念
+2. 「本质上」 -- 抽象提炼
+3. 「核心问题是 / 核心矛盾 / 核心挑战」
+4. 「AI 生命体」 -- 对 Agent 的独特拟人称呼
+5. 「先让 X 跑起来，再让它变强」「先跑通闭环」
+6. 「不追求 X，追求 Y」
+7. 「换句话说」
+8. 「说大不大，但...」
+9. 「不是 X，而是 Y」
+10. 「这就是...」
+11. 「做了一段时间后我意识到」
+12. 「有意为之的设计」
+13. 「这里存在一个 X 的问题」
+14. 「天然就是 / 天然适合」
+15. 「务实 / 闭环 / 跑通 / 落地」
+
+### 比喻习惯
+- 把 Agent 拟人化为「生命体」「灵魂」
+- 工人比喻解释 Context
+- 大脑 / 记忆类比解释 Memory
+- 偶尔引用「抽象之梯」（S.I.Hayakawa）
+
+### 排版习惯
+- H2 / H3 为主，标题中文 + 冒号 / 破折号
+- blockquote 用于引导性问题和金句
+- 表格用于对比分析（高频）
+- 代码块用于目录结构，非大段代码
+- `<u>下划线标记</u>` 用于列表项小标题（独特习惯）
+
+### 词汇特征
+- 务实类：务实、闭环、跑通、落地、工程落地
+- 拟人类：生命体、灵魂、大脑、成长、认知
+- 设计类：设计理念、设计哲学、架构优势
+- 避免使用：从不使用「干货」「硬核」「保姆级」等流量化标题词
+
+### 博客元信息
+- 博主：Linfeng (Tom) Liu
+- 身份：AI Agent Engineer
+- 框架：Hexo + Fluid
+- 部署：GitHub + Vercel → https://www.tom-blogs.top/
+- 4 个一级分类：ResearcherZero、Agent Engineering、Agent Product、Demo
+- 核心项目：ResearcherZero（AI 研究员 Agent）
+
