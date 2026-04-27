@@ -1,0 +1,43 @@
+[
+  {
+    "id": "t1",
+    "title": "清理「草稿箱」旧逻辑：彻底删除 drafts 相关全部代码与数据",
+    "description": "草稿箱已被「写作」页面替代。要删除：app.py 的 /api/drafts 全部端点和 helper、data/drafts 目录、data/drafts-index.json、static/js/tabs/drafts.js、static/css/drafts.css、static/html/drafts.html、main.js 的 drafts tab 注册、api.js 的 draft* 方法、platform.html 的「草稿箱」按钮。drafts 目录下两篇已发布的 md 文件已经在 tom-ai-lab-blogs 仓库里，删除是安全的。",
+    "subtasks": [
+      {"id": 1, "text": "确认 data/drafts/ 下 2 个 md 文件都对应 tom-ai-lab-blogs 仓库已发布的文章（避免误删）", "done": true},
+      {"id": 2, "text": "删除 app.py 里 /api/drafts 全部端点 + DraftCreate/DraftUpdate model + helper（_load_index、_save_index、_draft_path）+ DRAFTS_DIR / DRAFTS_INDEX 常量和 mkdir", "done": true},
+      {"id": 3, "text": "删除 static/js/tabs/drafts.js、static/css/drafts.css、static/html/drafts.html", "done": true},
+      {"id": 4, "text": "main.js 的 TABS 移除 drafts；api.js 移除 drafts 相关方法", "done": true},
+      {"id": 5, "text": "platform.html 的 tab-bar 删掉「草稿箱」按钮", "done": true},
+      {"id": 6, "text": "删除 data/drafts/ 目录和 data/drafts-index.json", "done": true},
+      {"id": 7, "text": "重启 service，确认 /api/drafts 404、/api/writings 仍正常、前端 ideas + writings tab 都能加载", "done": true}
+    ],
+    "done": true
+  },
+  {
+    "id": "t2",
+    "title": "「写作」页面前端重构：阶段从「分栏卡片」改成「分 tab 展示」",
+    "description": "目前 writings tab 用 stage-columns 横向排列五个阶段，信息密度低。改成在 writings tab 内部加一行子 tab，每个 stage 一个子 tab，点击切换显示该 stage 下的卡片。子 tab 顶部带每个 stage 的卡片数量，未读反馈红点应该出现在卡片本身上（保持现状），同时也要在子 tab 上加 badge 提示该 stage 有多少个 agent-pending 卡片（用 t3 修复后的口径）。",
+    "subtasks": [
+      {"id": 1, "text": "重写 static/html/writings.html 的列表结构：去掉 stage-columns，加一行子 tab + 单个卡片网格容器", "done": true},
+      {"id": 2, "text": "重写 static/css/writings.css 对应样式：删 stage-col*；新增 stage-subtabs / stage-subtab-btn / writings-grid", "done": true},
+      {"id": 3, "text": "重写 static/js/tabs/writings.js 列表渲染：默认进入「待你 approve / 待 agent 写」的活跃 stage；按 stage 过滤；子 tab 上显示卡片数 + agent-pending 数量", "done": true},
+      {"id": 4, "text": "保留 hash 路由：URL 上加 #writings/<stage>，刷新后还原；如果 stage 不合法回落到默认 stage", "done": true},
+      {"id": 5, "text": "回归测试：新增 idea → 子 tab 自动跳到 idea；agent 写 outline → 子 tab outline 上有红点；点 outline 子 tab 看到这条卡片", "done": true}
+    ],
+    "done": true
+  },
+  {
+    "id": "t3",
+    "title": "未读反馈 badge 的语义修复：从「人类未读」改成「agent 未处理」",
+    "description": "现在 badge 的口径是 feedback ts > human 的 feedback_cursor，导致 Tom 自己留反馈也会触发 badge，点开就清掉，agent 反而没机会知道。正确语义应该是：badge = 当前 stage 中、agent 还没在 stage 产物里 incorporate 的反馈数。判定：feedback 的 stage 等于当前 stage 且 ts > status.stage_ts[current_stage]（agent 每次写当前 stage 产物时 stage_ts 自动 bump）。这刚好与 scan_writings.py 的逻辑对齐。",
+    "subtasks": [
+      {"id": 1, "text": "app.py：从 status.json 字段移除 feedback_cursor；POST /feedback-cursor 端点彻底删除", "done": true},
+      {"id": 2, "text": "app.py：_build_writing_meta_card 的 unread_feedback 改成根据 stage_ts[current_stage] 和 stage 字段过滤计算", "done": true},
+      {"id": 3, "text": "app.py：GET /api/writings/{slug} 返回的 feedback 列表里 unread 字段改成同样口径", "done": true},
+      {"id": 4, "text": "static/js/api.js：删除 writingMarkRead；static/js/tabs/writings.js：openWriting 不再调 markRead", "done": true},
+      {"id": 5, "text": "回归测试：人类自己留反馈 → badge 立刻显示（因为 agent 没处理）；agent PUT /stage/<current> 后 → badge 清零；切换阶段 → 旧 stage 的 feedback 不再算 unread", "done": true}
+    ],
+    "done": true
+  }
+]

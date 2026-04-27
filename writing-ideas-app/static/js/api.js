@@ -32,13 +32,6 @@ export const api = {
   // ── Ideas ──
   ideas:    () => _request('GET', '/api/ideas'),
 
-  // ── Drafts ──
-  drafts:        () => _request('GET',    '/api/drafts'),
-  draft:    (id) => _request('GET',    `/api/drafts/${encodeURIComponent(id)}`),
-  draftCreate:   (body) => _request('POST',   '/api/drafts', body),
-  draftUpdate:   (id, body) => _request('PUT',    `/api/drafts/${encodeURIComponent(id)}`, body),
-  draftDelete:   (id) => _request('DELETE', `/api/drafts/${encodeURIComponent(id)}`),
-
   // ── Writings ──
   writings:           () => _request('GET',    '/api/writings'),
   writing:       (slug) => _request('GET',    `/api/writings/${encodeURIComponent(slug)}`),
@@ -52,6 +45,4 @@ export const api = {
     _request('POST', `/api/writings/${encodeURIComponent(slug)}/approve`, { stage }),
   writingPublish: (slug, target_dir) =>
     _request('POST', `/api/writings/${encodeURIComponent(slug)}/publish`, { target_dir: target_dir || null }),
-  writingMarkRead: (slug) =>
-    _request('POST', `/api/writings/${encodeURIComponent(slug)}/feedback-cursor`, {}),
 };

@@ -1,9 +1,8 @@
-"""Writing Platform — FastAPI backend for Ideas + Drafts + Writings collaboration."""
+"""Writing Platform — FastAPI backend for Ideas + Writings collaboration."""
 import json
 import os
 import re
 import shutil
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -17,15 +16,12 @@ from pydantic import BaseModel
 APP_DIR = Path(__file__).parent
 STATIC_DIR = APP_DIR / "static"
 DATA_DIR = APP_DIR / "data"
-DRAFTS_DIR = DATA_DIR / "drafts"
-DRAFTS_INDEX = DATA_DIR / "drafts-index.json"
 IDEAS_ROOT = DATA_DIR / "ideas"
 WRITINGS_ROOT = DATA_DIR / "writings"
 
 # Hexo posts directory for publish action
 HEXO_POSTS_DIR = APP_DIR.parent / "tom-ai-lab-blogs" / "source" / "_posts"
 
-DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
 IDEAS_ROOT.mkdir(parents=True, exist_ok=True)
 WRITINGS_ROOT.mkdir(parents=True, exist_ok=True)
 
@@ -43,109 +39,10 @@ if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-# ── Draft helpers ──────────────────────────────────────────────
-
-def _load_index() -> list[dict]:
-    if DRAFTS_INDEX.exists():
-        return json.loads(DRAFTS_INDEX.read_text(encoding="utf-8"))
-    return []
-
-
-def _save_index(index: list[dict]):
-    DRAFTS_INDEX.write_text(
-        json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-
-
-def _draft_path(draft_id: str) -> Path:
-    return DRAFTS_DIR / f"{draft_id}.md"
-
+# ── Helpers ────────────────────────────────────────────────────
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-# ── Pydantic models ───────────────────────────────────────────
-
-class DraftCreate(BaseModel):
-    title: str
-    content: str = ""
-    status: str = "draft"  # draft | review | approved | published
-
-
-class DraftUpdate(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
-    status: Optional[str] = None
-
-
-# ── API: Drafts ────────────────────────────────────────────────
-
-@app.get("/api/drafts")
-def list_drafts():
-    index = _load_index()
-    return {"drafts": index}
-
-
-@app.post("/api/drafts")
-def create_draft(body: DraftCreate):
-    draft_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]
-    now = _now_iso()
-    meta = {
-        "id": draft_id,
-        "title": body.title,
-        "status": body.status,
-        "created_at": now,
-        "updated_at": now,
-    }
-    # Save content
-    _draft_path(draft_id).write_text(body.content, encoding="utf-8")
-    # Update index
-    index = _load_index()
-    index.insert(0, meta)
-    _save_index(index)
-    return meta
-
-
-@app.get("/api/drafts/{draft_id}")
-def get_draft(draft_id: str):
-    index = _load_index()
-    meta = next((d for d in index if d["id"] == draft_id), None)
-    if not meta:
-        raise HTTPException(404, "Draft not found")
-    path = _draft_path(draft_id)
-    content = path.read_text(encoding="utf-8") if path.exists() else ""
-    return {**meta, "content": content}
-
-
-@app.put("/api/drafts/{draft_id}")
-def update_draft(draft_id: str, body: DraftUpdate):
-    index = _load_index()
-    meta = next((d for d in index if d["id"] == draft_id), None)
-    if not meta:
-        raise HTTPException(404, "Draft not found")
-    if body.title is not None:
-        meta["title"] = body.title
-    if body.status is not None:
-        meta["status"] = body.status
-    if body.content is not None:
-        _draft_path(draft_id).write_text(body.content, encoding="utf-8")
-    meta["updated_at"] = _now_iso()
-    _save_index(index)
-    return meta
-
-
-@app.delete("/api/drafts/{draft_id}")
-def delete_draft(draft_id: str):
-    index = _load_index()
-    new_index = [d for d in index if d["id"] != draft_id]
-    if len(new_index) == len(index):
-        raise HTTPException(404, "Draft not found")
-    _save_index(new_index)
-    path = _draft_path(draft_id)
-    if path.exists():
-        path.unlink()
-    return {"ok": True}
 
 
 # ── API: Ideas ─────────────────────────────────────────────────
@@ -325,11 +222,30 @@ def _write_stage(slug: str, stage: str, content: str):
     os.replace(tmp, p)
 
 
+def _agent_pending_feedback(status: dict, feedback: list[dict]) -> list[dict]:
+    """Feedback the agent has not yet incorporated for the CURRENT stage.
+
+    Semantics: a feedback entry F is pending iff F.stage == current_stage
+    AND F.ts > stage_ts[current_stage]. The stage_ts cursor is bumped
+    whenever the agent writes a new revision of the current stage via
+    PUT /stage/{name}, so processed feedback naturally falls below the
+    cursor on the next refresh.
+    """
+    stage = status.get("stage", "idea")
+    cur_ts = (status.get("stage_ts") or {}).get(stage, "")
+    out = []
+    for f in feedback:
+        f_stage = f.get("stage") or stage
+        f_ts = f.get("ts") or ""
+        if f_stage == stage and f_ts > cur_ts:
+            out.append(f)
+    return out
+
+
 def _build_writing_meta_card(slug: str, status: dict, meta: dict) -> dict:
     """Compact card used by the list endpoint."""
     feedback = _read_feedback(slug)
-    cursor = status.get("feedback_cursor") or ""
-    unread = sum(1 for f in feedback if (f.get("ts") or "") > cursor)
+    pending = _agent_pending_feedback(status, feedback)
     stage = status.get("stage", "idea")
     last_ts = ""
     for s in VALID_STAGES:
@@ -341,7 +257,7 @@ def _build_writing_meta_card(slug: str, status: dict, meta: dict) -> dict:
         "title": meta.get("title") or slug,
         "stage": stage,
         "updated_at": last_ts,
-        "unread_feedback": unread,
+        "agent_pending_feedback": len(pending),
         "tags": meta.get("tags") or [],
         "category": meta.get("category") or "",
     }
@@ -394,7 +310,6 @@ def create_writing(body: WritingCreate):
         "stage": "idea",
         "stage_ts": {"idea": now},
         "approve_ts": {},
-        "feedback_cursor": "",
         "last_error": None,
     }
     _write_status(slug, status)
@@ -446,9 +361,10 @@ def get_writing(slug: str):
     status = _read_status(slug)
     meta = _read_meta(slug)
     feedback = _read_feedback(slug)
-    cursor = status.get("feedback_cursor") or ""
+    pending_set = {id(f) for f in _agent_pending_feedback(status, feedback)}
     for f in feedback:
-        f["unread"] = (f.get("ts") or "") > cursor
+        # Each entry knows whether the agent still owes a revision for it.
+        f["agent_pending"] = id(f) in pending_set
     return {
         "slug": slug,
         "status": status,
@@ -533,15 +449,6 @@ def publish_writing(slug: str, body: PublishBody):
     status["published_path"] = str(target_file.relative_to(APP_DIR.parent))
     _write_status(slug, status)
     return {"ok": True, "stage": "published", "published_path": status["published_path"]}
-
-
-@app.post("/api/writings/{slug}/feedback-cursor")
-def update_feedback_cursor(slug: str):
-    """Mark all feedback as read up to now (used when Tom views the writing)."""
-    status = _read_status(slug)
-    status["feedback_cursor"] = _now_iso()
-    _write_status(slug, status)
-    return {"ok": True, "feedback_cursor": status["feedback_cursor"]}
 
 
 @app.delete("/api/writings/{slug}")

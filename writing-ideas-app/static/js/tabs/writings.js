@@ -1,28 +1,32 @@
-// tabs/writings.js — Writings tab module (state-machine cards + detail view + feedback flow).
+// tabs/writings.js — Writings tab module.
+// List view: one sub-tab per stage; click to filter cards.
+// Detail view: stage tabs + feedback panel; agent_pending field drives the badges.
 
 import { api } from '../api.js';
 import { ensureCss, escapeHtml, fmtTime, loadHtmlFragment, toast } from '../ui.js';
 
 const STAGE_ORDER = ['idea', 'outline', 'draft', 'approved', 'published'];
 const STAGE_LABELS = {
-  idea: 'idea (等待 agent 出大纲)',
-  outline: '大纲 (待你 approve)',
-  draft: '草稿 (待你 approve)',
-  approved: '已通过 (等待发布)',
-  published: '已发布',
-};
-const STAGE_BADGE_LABEL = {
   idea: 'idea',
   outline: 'outline',
   draft: 'draft',
   approved: 'approved',
   published: 'published',
 };
+const STAGE_HINT = {
+  idea: '等待 agent 出大纲',
+  outline: '待你 approve',
+  draft: '待你 approve',
+  approved: '等待发布',
+  published: '已发布',
+};
 
 let rootEl = null;
+let allWritings = [];
+let activeStage = null;
 let currentSlug = null;
 let currentDetail = null;
-let currentStageTab = null; // which stage's content is shown in detail view
+let currentStageTab = null;
 
 function showList() {
   rootEl.querySelector('#writingsListView').style.display = 'block';
@@ -37,30 +41,82 @@ function showDetail() {
   rootEl.querySelector('#writingsDetailView').style.display = 'block';
 }
 
-function renderStageCards(writings) {
-  const cols = STAGE_ORDER.map((stage) => {
-    const items = writings.filter((w) => w.stage === stage);
-    const cards = items.map((w) => `
-      <div class="writing-card" data-slug="${escapeHtml(w.slug)}">
-        ${w.unread_feedback > 0 ? '<span class="unread-dot" title="有未读反馈"></span>' : ''}
-        <div class="writing-card-title">${escapeHtml(w.title)}</div>
-        <div class="writing-card-meta">
-          <span>${fmtTime(w.updated_at)}</span>
-          <span>${w.unread_feedback > 0 ? `${w.unread_feedback} 条未读` : ''}</span>
-        </div>
+// ── List view ──────────────────────────────────────────────────
+
+function _stageFromHash() {
+  const h = (location.hash || '').replace(/^#/, '');
+  // Expected format: writings/<stage> or writings
+  const parts = h.split('/');
+  if (parts[0] === 'writings' && parts[1] && STAGE_ORDER.includes(parts[1])) {
+    return parts[1];
+  }
+  return null;
+}
+
+function _writeStageHash(stage) {
+  const next = stage ? `#writings/${stage}` : '#writings';
+  if (location.hash !== next) location.hash = next;
+}
+
+function _autoPickStage(writings) {
+  // 1. If any stage has pending agent feedback, jump there.
+  for (const s of STAGE_ORDER) {
+    const items = writings.filter((w) => w.stage === s);
+    if (items.some((w) => (w.agent_pending_feedback || 0) > 0)) return s;
+  }
+  // 2. Else first non-empty stage in order, ignoring published.
+  for (const s of STAGE_ORDER) {
+    if (s === 'published') continue;
+    if (writings.some((w) => w.stage === s)) return s;
+  }
+  // 3. Default to idea.
+  return 'idea';
+}
+
+function renderSubtabs() {
+  const counts = Object.fromEntries(STAGE_ORDER.map((s) => [s, 0]));
+  const pending = Object.fromEntries(STAGE_ORDER.map((s) => [s, 0]));
+  for (const w of allWritings) {
+    counts[w.stage] = (counts[w.stage] || 0) + 1;
+    pending[w.stage] = (pending[w.stage] || 0) + (w.agent_pending_feedback || 0);
+  }
+  const html = STAGE_ORDER.map((s) => `
+    <button class="stage-subtab-btn ${activeStage === s ? 'active' : ''}" data-stage="${s}">
+      <span>${STAGE_LABELS[s]}</span>
+      <span class="count">${counts[s] || 0}</span>
+      ${pending[s] > 0 ? '<span class="pending-dot" title="agent 有未处理反馈"></span>' : ''}
+    </button>
+  `).join('');
+  rootEl.querySelector('#stageSubtabs').innerHTML = html;
+  rootEl.querySelectorAll('.stage-subtab-btn').forEach((b) => {
+    b.addEventListener('click', () => {
+      activeStage = b.getAttribute('data-stage');
+      _writeStageHash(activeStage);
+      renderSubtabs();
+      renderGrid();
+    });
+  });
+}
+
+function renderGrid() {
+  const grid = rootEl.querySelector('#writingsGrid');
+  const items = allWritings.filter((w) => w.stage === activeStage);
+  if (!items.length) {
+    grid.innerHTML = `<div class="empty">${activeStage} 阶段当前没有 writing</div>`;
+    return;
+  }
+  grid.innerHTML = items.map((w) => `
+    <div class="writing-card" data-slug="${escapeHtml(w.slug)}">
+      ${(w.agent_pending_feedback || 0) > 0
+        ? `<span class="unread-dot" title="agent 有 ${w.agent_pending_feedback} 条未处理反馈"></span>` : ''}
+      <div class="writing-card-title">${escapeHtml(w.title)}</div>
+      <div class="writing-card-meta">
+        <span>${fmtTime(w.updated_at)}</span>
+        <span>${(w.agent_pending_feedback || 0) > 0
+          ? `${w.agent_pending_feedback} 条待处理` : STAGE_HINT[w.stage] || ''}</span>
       </div>
-    `).join('');
-    return `
-      <div class="stage-col">
-        <div class="stage-col-header">
-          <span>${STAGE_LABELS[stage]}</span>
-          <span class="stage-col-count">${items.length}</span>
-        </div>
-        ${cards || '<div class="meta" style="font-size:12px;padding:6px 4px;">空</div>'}
-      </div>
-    `;
-  }).join('');
-  rootEl.querySelector('#stageColumns').innerHTML = cols;
+    </div>
+  `).join('');
   rootEl.querySelectorAll('.writing-card').forEach((c) => {
     c.addEventListener('click', () => openWriting(c.getAttribute('data-slug')));
   });
@@ -69,14 +125,19 @@ function renderStageCards(writings) {
 async function loadList() {
   try {
     const data = await api.writings();
-    const writings = data.writings || [];
-    rootEl.querySelector('#writingsCount').textContent =
-      `共 ${writings.length} 篇 | 未读反馈 ${writings.reduce((s, w) => s + (w.unread_feedback || 0), 0)} 条`;
-    renderStageCards(writings);
+    allWritings = data.writings || [];
+    if (!activeStage) {
+      activeStage = _stageFromHash() || _autoPickStage(allWritings);
+      _writeStageHash(activeStage);
+    }
+    renderSubtabs();
+    renderGrid();
   } catch (e) {
-    rootEl.querySelector('#stageColumns').innerHTML = '<div class="empty">加载失败</div>';
+    rootEl.querySelector('#writingsGrid').innerHTML = '<div class="empty">加载失败</div>';
   }
 }
+
+// ── Detail view ────────────────────────────────────────────────
 
 async function openWriting(slug) {
   try {
@@ -84,8 +145,6 @@ async function openWriting(slug) {
     currentSlug = slug;
     showDetail();
     renderDetail();
-    // Mark feedback as read on view
-    try { await api.writingMarkRead(slug); } catch (_) { /* non-blocking */ }
   } catch (e) {
     toast('打开失败：' + (e.message || ''));
   }
@@ -95,15 +154,16 @@ function renderDetail() {
   const d = currentDetail;
   rootEl.querySelector('#detailTitle').textContent = (d.meta && d.meta.title) || d.slug;
   const stage = (d.status && d.status.stage) || 'idea';
-  const stageBadge = `<span class="writing-stage-badge ${stage}">${STAGE_BADGE_LABEL[stage] || stage}</span>`;
+  const stageBadge = `<span class="writing-stage-badge ${stage}">${STAGE_LABELS[stage] || stage}</span>`;
   const tags = (d.meta && d.meta.tags) || [];
   const cat = (d.meta && d.meta.category) || '';
   const tagsHtml = tags.map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join(' ');
-  const lastErr = (d.status && d.status.last_error) ? `<span style="color:var(--danger-fg);margin-left:8px">⚠ ${escapeHtml(d.status.last_error)}</span>` : '';
+  const lastErr = (d.status && d.status.last_error)
+    ? `<span style="color:var(--danger-fg);margin-left:8px">⚠ ${escapeHtml(d.status.last_error)}</span>` : '';
   rootEl.querySelector('#detailMeta').innerHTML =
     `${stageBadge}${cat ? `<span class="tag">${escapeHtml(cat)}</span> ` : ''}${tagsHtml}${lastErr}`;
 
-  // Stage tabs
+  // Stage tabs (within the detail panel — show available product stages)
   const presentStages = ['idea', 'outline', 'draft'].filter((s) => (d.stages || {}).hasOwnProperty(s));
   if (!currentStageTab || !presentStages.includes(currentStageTab)) {
     currentStageTab = presentStages[presentStages.length - 1] || 'idea';
@@ -145,12 +205,12 @@ function renderDetail() {
   const publishBtn = rootEl.querySelector('#publishBtn');
   publishBtn.style.display = (stage === 'approved') ? 'inline-block' : 'none';
 
-  // Feedback list (newest first)
+  // Feedback list (newest first; agent_pending entries highlighted)
   const fb = (d.feedback || []).slice().reverse();
   rootEl.querySelector('#feedbackList').innerHTML = fb.map((f) => `
-    <div class="feedback-item ${f.unread ? 'unread' : ''}">
+    <div class="feedback-item ${f.agent_pending ? 'unread' : ''}">
       <div class="feedback-item-meta">
-        <span>${escapeHtml(f.stage || '')}</span>
+        <span>${escapeHtml(f.stage || '')}${f.agent_pending ? ' · agent 待处理' : ''}</span>
         <span>${fmtTime(f.ts)}</span>
       </div>
       <div>${escapeHtml(f.text || '')}</div>
@@ -185,7 +245,6 @@ async function submitFeedback() {
 }
 
 async function publishWriting() {
-  // Infer target subdir from the active category-to-folder mapping; fallback to none
   const cat = (currentDetail.meta && currentDetail.meta.category) || '';
   const map = {
     'Agent Engineering': 'agent-engineering',
@@ -193,8 +252,11 @@ async function publishWriting() {
     'ResearcherZero': 'researcher-zero',
     'Demo': 'demos',
   };
-  const sub = map[cat] || prompt('发布到哪个子目录？(例如 agent-engineering, 留空则放在 _posts 根目录)', '') || '';
-  if (sub === null) return;
+  let sub = map[cat];
+  if (sub === undefined) {
+    sub = prompt('发布到哪个子目录？(例如 agent-engineering, 留空则放在 _posts 根目录)', '');
+    if (sub === null) return; // cancelled
+  }
   if (!confirm(`确认发布到 tom-ai-lab-blogs/source/_posts/${sub}/${currentSlug}.md ？`)) return;
   try {
     const out = await api.writingPublish(currentSlug, sub);
@@ -212,13 +274,15 @@ async function deleteWriting() {
   try {
     await api.writingDelete(currentSlug);
     showList();
+    activeStage = null; // re-pick after deletion
     await loadList();
   } catch (e) {
     toast('删除失败：' + (e.message || ''));
   }
 }
 
-// New writing modal
+// ── New writing modal ──────────────────────────────────────────
+
 function openNewModal() {
   rootEl.querySelector('#newWritingModal').classList.add('show');
   rootEl.querySelector('#newTitle').focus();
@@ -237,12 +301,16 @@ async function confirmNew() {
   try {
     const meta = await api.writingCreate({ title, idea, reference_link: ref || null });
     closeNewModal();
+    activeStage = 'idea';
+    _writeStageHash(activeStage);
     await loadList();
     await openWriting(meta.slug);
   } catch (e) {
     toast('创建失败：' + (e.message || ''));
   }
 }
+
+// ── Wiring ─────────────────────────────────────────────────────
 
 function bindEvents() {
   rootEl.querySelector('[data-action="new"]').addEventListener('click', openNewModal);
@@ -266,11 +334,16 @@ export async function mount(root) {
   rootEl.innerHTML = await loadHtmlFragment('/static/html/writings.html');
   bindEvents();
   showList();
+  // Pre-pick from hash so a refresh on #writings/draft restores the right tab
+  const hashStage = _stageFromHash();
+  if (hashStage) activeStage = hashStage;
   await loadList();
 }
 
 export function unmount() {
   rootEl = null;
+  allWritings = [];
+  activeStage = null;
   currentSlug = null;
   currentDetail = null;
   currentStageTab = null;

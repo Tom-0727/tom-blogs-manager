@@ -5,7 +5,6 @@ import { api } from './api.js';
 
 const TABS = {
   ideas:    { module: '/static/js/tabs/ideas.js' },
-  drafts:   { module: '/static/js/tabs/drafts.js' },
   writings: { module: '/static/js/tabs/writings.js' },
 };
 
@@ -14,7 +13,9 @@ let currentTab = null;
 let currentMod = null;
 
 function tabFromHash() {
-  const h = (location.hash || '').replace(/^#/, '');
+  // The hash may carry a sub-route like "#writings/draft" — only the segment
+  // before the first "/" identifies the active tab.
+  const h = (location.hash || '').replace(/^#/, '').split('/')[0];
   return TABS[h] ? h : DEFAULT_TAB;
 }
 
@@ -41,10 +42,11 @@ async function showTab(name) {
 }
 
 async function refreshBadges() {
-  // Only the writings tab has an unread-count concept right now.
+  // The writings tab badge counts feedback the AGENT has not yet
+  // incorporated for the current stage of each writing.
   try {
     const data = await api.writings();
-    const total = (data.writings || []).reduce((s, w) => s + (w.unread_feedback || 0), 0);
+    const total = (data.writings || []).reduce((s, w) => s + (w.agent_pending_feedback || 0), 0);
     const btn = document.querySelector('.tab-btn[data-tab="writings"]');
     if (!btn) return;
     btn.querySelectorAll('.tab-badge').forEach((el) => el.remove());
@@ -61,7 +63,8 @@ function bindTabClicks() {
   document.querySelectorAll('.tab-btn').forEach((b) => {
     b.addEventListener('click', () => {
       const name = b.getAttribute('data-tab');
-      location.hash = '#' + name;
+      // Drop any sub-route when switching tabs from the top bar.
+      if (location.hash !== '#' + name) location.hash = '#' + name;
     });
   });
   window.addEventListener('hashchange', () => showTab(tabFromHash()));
