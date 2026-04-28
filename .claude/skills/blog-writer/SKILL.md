@@ -143,7 +143,8 @@ This section was migrated from the retired `Memory/knowledge/factual/factual--bl
 ### 结尾模式
 - 模式一 -- 总结性金句 + 预告下篇（架构系列）
 - 模式二 -- 提炼哲学 / 原则性总结
-- 模式三 -- 邀请式结尾「如果你也...，不妨 / 欢迎...」
+
+不要在文章末尾写邀请式结尾（如「如果你也...，欢迎和我交流...」）。Tom 已经明确不再用这种收尾方式 -- 文章结束就让它自然结束，不要追加 call-to-action 段落。
 
 ### 反复出现的特征性短语（保留 15 条）
 1. 「Human in the loop」 -- 全系列最高频概念
