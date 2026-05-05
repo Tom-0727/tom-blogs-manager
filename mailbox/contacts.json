@@ -4,10 +4,10 @@
     "mailbox_file": "human.jsonl",
     "connected_at": "2026-04-06T08:36:43Z"
   },
-  "AI-Informer": {
+  "ai-informer-builder": {
     "type": "agent",
-    "mailbox_file": "agent.AI-Informer.jsonl",
-    "remote_workdir": "/home/ubuntu/agents/ai-informer",
+    "mailbox_file": "agent.ai-informer-builder.jsonl",
+    "remote_workdir": "/home/ubuntu/agents/builders/ai-informer-builder",
     "connected_at": "2026-04-06T09:27:27Z"
   }
 }

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "heartbeat": {
+    "count": 90,
+    "last_duration_seconds": 16.981,
+    "avg_duration_seconds": 45.50623333333333,
+    "total_duration_seconds": 4095.5609999999997
+  },
+  "compact": {
+    "count_since_last": 90,
+    "total_compacts": 2,
+    "total_heartbeats_between_compacts": 0,
+    "avg_heartbeats_between": 0,
+    "last_compact_at": "2026-04-15T06:41:59.799Z",
+    "heartbeat_count_at_last_compact": 0
+  },
+  "tokens": {
+    "last_turn": {
+      "input_tokens": 7,
+      "output_tokens": 158,
+      "cache_read_input_tokens": 464002,
+      "cache_creation_input_tokens": 464159,
+      "estimated_context_tokens": 928168
+    },
+    "estimated_context_tokens": 928168,
+    "lifetime": {
+      "input_tokens": 848,
+      "output_tokens": 193505,
+      "cache_read_input_tokens": 119521450,
+      "cache_creation_input_tokens": 3833004,
+      "cached_input_tokens": 0
+    }
+  },
+  "last_updated": "2026-04-30T03:04:11Z"
+}

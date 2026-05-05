@@ -1,0 +1,57 @@
+{
+  "generated_at": "2026-04-30T02:03:20Z",
+  "digest_source": "mail.20260429T160552Z.001",
+  "ideas": [
+    {
+      "title": "Google warns malicious web pages are poisoning AI agents",
+      "url": "https://www.artificialintelligence-news.com/news/google-warns-malicious-web-pages-poisoning-ai-agents/",
+      "source": "artificialintelligence-news",
+      "scores": {
+        "audience_reach": 4,
+        "distribution_potential": 4,
+        "author_differentiation": 4,
+        "timeliness": 5,
+        "series_potential": 3,
+        "total": 20
+      },
+      "content_line": "技术深度",
+      "suggested_angle": "从我自建Long-Run Agent浏览网页的实践出发，讲清楚Prompt Injection在工程上到底要怎么防",
+      "recommendation": "strong",
+      "date": "2026-04-30"
+    },
+    {
+      "title": "Building Workforce AI Agents with Visier and Amazon Quick",
+      "url": "https://aws.amazon.com/blogs/machine-learning/building-workforce-ai-agents-with-visier-and-amazon-quick/",
+      "source": "aws-ml-blog",
+      "scores": {
+        "audience_reach": 4,
+        "distribution_potential": 3,
+        "author_differentiation": 5,
+        "timeliness": 3,
+        "series_potential": 4,
+        "total": 19
+      },
+      "content_line": "行业洞察",
+      "suggested_angle": "对照AWS的Workforce Agent方案，讲我用一个人多Agent跑业务的真实工程取舍",
+      "recommendation": "moderate",
+      "date": "2026-04-30"
+    },
+    {
+      "title": "Build a Reinforcement Learning Powered Agent that Learns to Retrieve Relevant Long-Term Memories for Accurate LLM Question Answering",
+      "url": "https://www.marktechpost.com/2026/04/27/build-a-reinforcement-learning-powered-agent-that-learns-to-retrieve-relevant-long-term-memories/",
+      "source": "marktechpost",
+      "scores": {
+        "audience_reach": 3,
+        "distribution_potential": 3,
+        "author_differentiation": 5,
+        "timeliness": 4,
+        "series_potential": 5,
+        "total": 20
+      },
+      "content_line": "技术深度",
+      "suggested_angle": "结合ResearcherZero记忆架构的实践，比较RL检索与朴素相似度检索在工程落地上的差距",
+      "recommendation": "strong",
+      "date": "2026-04-30"
+    }
+  ]
+}
